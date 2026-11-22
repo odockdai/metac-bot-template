@@ -60,7 +60,7 @@ def _utc(moment: datetime | None) -> str:
 
 
 def build_request(items: list[ResearchItem]) -> str:
-    ordered = sorted(items, key=lambda item: item.deadline)
+    ordered = sorted(items, key=lambda item: (item.deadline, item.closes_at or datetime.max.replace(tzinfo=item.deadline.tzinfo)))
     lines = [
         f"Research request for the Metaculus forecasting bot ({len(ordered)} question(s)). "
         "Do not reply; write one brief per question to its output path. "

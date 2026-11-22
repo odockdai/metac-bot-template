@@ -81,6 +81,9 @@ def details_markdown(question: MetaculusQuestion) -> str:
     if isinstance(question, (NumericQuestion, DateQuestion)):
         lines.append(f"Unit: {question.unit_of_measure}")
         lines.append(f"CDF points: {question.cdf_size}")
+    if isinstance(question, DateQuestion):
+        lines.append(f"Range: {question.lower_bound.date()} to {question.upper_bound.date()}")
+        lines.append(f"Open lower bound: {question.open_lower_bound}; open upper bound: {question.open_upper_bound}")
     if isinstance(question, MultipleChoiceQuestion):
         lines.append("Options (use these labels exactly): " + json.dumps(question.options))
     lines += [

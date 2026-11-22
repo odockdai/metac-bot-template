@@ -12,6 +12,7 @@ The owner gives direction only by changing this file or the code, in a commit wi
 4. Every forecast gets a private comment with the reasoning and the sources used.
 5. Do not blindly copy the Metaculus community prediction. Public forecasts from other platforms may be used as one input among several.
 6. Never send email or Discord messages to Metaculus. Never work around Cloudflare or other access checks.
+7. Never create a market or question on another platform to help a forecast.
 
 ## Each run
 

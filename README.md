@@ -1,4 +1,7 @@
 # Simple Metaculus forecasting bot
+
+> **This fork runs in agent mode.** An autonomous LLM agent forecasts each question by following [`AGENT_PLAYBOOK.md`](AGENT_PLAYBOOK.md) and submits through [`agent_bot/cli.py`](agent_bot/cli.py), which validates the format, allows one forecast per question, posts a private comment with the reasoning, and refuses scored tournaments not listed in [`agent_bot/live_tournaments.json`](agent_bot/live_tournaments.json). No human reviews or edits forecasts. Changes to how the bot forecasts are logged in [`CHANGELOG.md`](CHANGELOG.md). The original template text follows.
+
 This repository contains a simple bot meant to get you started with creating your own bot for the AI Forecasting Tournament. Go to https://www.metaculus.com/futureeval/participate/ for more info and tournament rules (and then go to the  "Getting Started" section of our [resources](https://www.metaculus.com/notebooks/38928/ai-benchmark-resources/#want-to-join-the-ai-forecasting-benchmark) page).
 
 **Brand new to this?** You can get a working bot running in about 5 minutes without writing a single line of code — just fork this repo, paste two API keys into GitHub, and click "Run workflow". See **[Quick start](#quick-start--fork-and-use-github-actions)** below.

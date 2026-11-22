@@ -37,8 +37,11 @@ def research_path(question_id: int) -> Path:
     return research_dir() / f"{question_id}.md"
 
 
-def research_status(path: Path) -> ResearchStatus:
+def research_status(path: Path, not_before: datetime | None = None) -> ResearchStatus:
+    """A brief written before `not_before` (the bot's last forecast on the question) is stale."""
     if not path.exists():
+        return "missing"
+    if not_before is not None and path.stat().st_mtime < not_before.timestamp():
         return "missing"
     lines = [line.strip() for line in path.read_text().splitlines() if line.strip()]
     if lines and lines[-1].startswith("STATUS: complete"):

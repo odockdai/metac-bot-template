@@ -13,7 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import dotenv
@@ -104,20 +104,51 @@ def cmd_whoami(args: argparse.Namespace) -> int:
     return 0
 
 
+def practice_settings() -> dict:
+    path = ledger.state_dir() / "practice.json"
+    settings = {"enabled": True, "targets": ["bot-testing-area"], "refresh_after_hours": 24.0, "max_per_run": 2}
+    if path.exists():
+        settings.update(json.loads(path.read_text()))
+    return settings
+
+
+def targets() -> list[str]:
+    settings = practice_settings()
+    practice = [t for t in settings["targets"] if is_practice(str(t))] if settings["enabled"] else []
+    return [str(t) for t in practice] + sorted(live_tournaments())
+
+
+def cmd_targets(args: argparse.Namespace) -> int:
+    print(json.dumps({"targets": targets(), "live": sorted(live_tournaments())}))
+    return 0
+
+
+def select_questions(client: MetaculusClient, tournament: str) -> list[MetaculusQuestion]:
+    questions = open_questions(client, tournament)
+    if not is_practice(tournament):
+        done = ledger.forecasted_question_ids()
+        return [q for q in questions if not q.already_forecasted and q.id_of_question not in done]
+    settings = practice_settings()
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=float(settings["refresh_after_hours"]))
+    due = [q for q in questions if q.timestamp_of_my_last_forecast is None or q.timestamp_of_my_last_forecast < cutoff]
+    due.sort(key=lambda q: q.timestamp_of_my_last_forecast or datetime.min.replace(tzinfo=timezone.utc))
+    return due[: int(settings["max_per_run"])]
+
+
 def cmd_pending(args: argparse.Namespace) -> int:
     client = MetaculusClient()
-    done = ledger.forecasted_question_ids()
     questions_dir = ledger.state_dir() / "questions"
     questions_dir.mkdir(exist_ok=True)
     pending = []
-    for question in open_questions(client, args.tournament):
-        if question.already_forecasted or question.id_of_question in done:
-            continue
+    for question in select_questions(client, args.tournament):
         kind = question_type(question)
         detail_file = questions_dir / f"{question.id_of_question}.md"
         detail_file.write_text(details_markdown(question))
         brief = research.research_path(question.id_of_question)
+        last_forecast = ledger.last_forecast_at(question.id_of_question)
         requested_at = ledger.research_requested_at(question.id_of_question)
+        if requested_at and last_forecast and requested_at < last_forecast:
+            requested_at = None
         pending.append(
             {
                 "question_id": question.id_of_question,
@@ -128,7 +159,7 @@ def cmd_pending(args: argparse.Namespace) -> int:
                 "title": question.question_text,
                 "details_file": str(detail_file),
                 "research_file": str(brief),
-                "research_status": research.research_status(brief),
+                "research_status": research.research_status(brief, not_before=last_forecast),
                 "research_requested_at": requested_at.isoformat() if requested_at else None,
             }
         )
@@ -289,6 +320,28 @@ def cmd_retry_comments(args: argparse.Namespace) -> int:
     return 1 if failures else 0
 
 
+def cmd_wait_research(args: argparse.Namespace) -> int:
+    import time
+
+    deadline = time.monotonic() + args.timeout_minutes * 60
+    while True:
+        statuses = {
+            qid: research.research_status(research.research_path(qid), not_before=ledger.last_forecast_at(qid))
+            for qid in dict.fromkeys(args.question_id)
+        }
+        if all(s != "missing" for s in statuses.values()) or time.monotonic() >= deadline:
+            print(json.dumps({"research_status": statuses}))
+            return 0
+        time.sleep(30)
+
+
+def cmd_run_finished(args: argparse.Namespace) -> int:
+    marker = ledger.state_dir() / "last_run.json"
+    marker.write_text(json.dumps({"finished_at": datetime.now(timezone.utc).isoformat(), "note": args.note or ""}))
+    print(f"run recorded in {marker}")
+    return 0
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     latest = ledger.latest_by_question()
     summary: dict[str, dict[str, int]] = {}
@@ -319,6 +372,14 @@ def main(argv: list[str] | None = None) -> int:
     research_request.set_defaults(func=cmd_research_request)
     sub.add_parser("retry-comments").set_defaults(func=cmd_retry_comments)
     sub.add_parser("status").set_defaults(func=cmd_status)
+    sub.add_parser("targets").set_defaults(func=cmd_targets)
+    wait_research = sub.add_parser("wait-research")
+    wait_research.add_argument("--question-id", type=int, action="append", required=True)
+    wait_research.add_argument("--timeout-minutes", type=float, default=12)
+    wait_research.set_defaults(func=cmd_wait_research)
+    run_finished = sub.add_parser("run-finished")
+    run_finished.add_argument("--note")
+    run_finished.set_defaults(func=cmd_run_finished)
     args = parser.parse_args(argv)
     return args.func(args)
 

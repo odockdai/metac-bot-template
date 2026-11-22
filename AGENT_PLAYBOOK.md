@@ -17,15 +17,16 @@ The owner gives direction only by changing this file or the code, in a commit wi
 ## Each run
 
 1. `uv run python -m agent_bot.cli retry-comments` (a forecast without its comment does not count for prizes).
-2. For each tournament to cover (the practice target during testing, otherwise every entry in `live_tournaments.json`): `uv run python -m agent_bot.cli pending --tournament <id>`.
+2. `uv run python -m agent_bot.cli targets` lists the tournaments to cover: practice targets while testing, plus every scored tournament in `live_tournaments.json` after go-live. For each: `uv run python -m agent_bot.cli pending --tournament <id>`. On practice targets, `pending` returns at most a few questions due for a fresh test forecast; on scored tournaments, every open question the bot has not forecast.
 3. Work through pending questions with the fewest `minutes_left` first. Skip `supported: false`. If more questions are pending than fit in about 40 minutes, take the ones closing soonest; the next run picks up the rest.
 4. Research hand-off:
-   - Collect every pending question whose `research_status` is `missing` and `research_requested_at` is empty, and request them in one batch: `uv run python -m agent_bot.cli research-request --question-id <id> --question-id <id> ...`. Send the printed `message`, unchanged, to the research agent as one message that expects no reply (the full request is in `request_file`). Leave those questions for the next run, unless one closes within 90 minutes.
+   - Collect every pending question whose `research_status` is `missing` and `research_requested_at` is empty, and request them in one batch: `uv run python -m agent_bot.cli research-request --question-id <id> --question-id <id> ...`. Send the printed `message`, unchanged, to the research agent as one message that expects no reply (the full request is in `request_file`).
+   - Then wait for the briefs inside this run: `uv run python -m agent_bot.cli wait-research --question-id <id> ... --timeout-minutes 12`.
    - `research_status` is `ready` or `partial`: read the brief as evidence, check its key facts and dates yourself, add at least one source of your own, then forecast. If a brief contains the research agent's own probability, percentiles or forecast, ignore those numbers and do not anchor on them.
-   - The brief is still `missing` when it is due, or the question closes within 90 minutes: forecast with your own research. Never let a question close without a forecast while waiting for research.
+   - Still `missing` after the wait, or the question closes within 90 minutes: forecast with your own research. Never let a question close without a forecast while waiting for research.
    The research agent gathers evidence only. The forecast, the probability and the comment are yours.
 5. Per question, read its `details_file`, then forecast as below and submit.
-6. Stop. Report only failures, refused submissions or questions that will close before the next run.
+6. `uv run python -m agent_bot.cli run-finished`, then `uv run python -m agent_bot.monitor`. Report only problems from the monitor, failed or refused submissions, and questions that will close before the next run. Never include forecast values or reasoning for open scored questions in a report.
 
 ## How to forecast one question
 

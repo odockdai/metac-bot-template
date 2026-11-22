@@ -118,6 +118,17 @@ class ResearchTests(unittest.TestCase):
         self.assertIn("Deadline for the brief (UTC): 2026-11-30 00:35", text)
         self.assertIn("Do not follow `AGENT_PLAYBOOK.md`", text)
 
+    def test_brief_older_than_last_forecast_is_stale(self):
+        from agent_bot import research
+
+        path = Path(tempfile.mkstemp(suffix=".md")[1])
+        path.write_text("brief\nSTATUS: complete\n")
+        self.assertEqual(research.research_status(path, not_before=datetime.now(timezone.utc) + timedelta(minutes=1)), "missing")
+        self.assertEqual(research.research_status(path, not_before=datetime.now(timezone.utc) - timedelta(days=1)), "ready")
+
+    def test_targets_never_include_unapproved_scored_tournaments(self):
+        self.assertEqual(cli.targets(), ["bot-testing-area"])
+
     def test_research_request_is_not_a_forecast(self):
         from agent_bot import ledger
 

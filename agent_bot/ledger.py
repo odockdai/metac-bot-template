@@ -65,6 +65,15 @@ def forecasted_question_ids() -> set[int]:
     }
 
 
+def last_forecast_at(question_id: int) -> datetime | None:
+    times = [
+        datetime.fromisoformat(e["at"])
+        for e in read_entries()
+        if e["event"] == "forecast_posted" and int(e["question_id"]) == question_id
+    ]
+    return max(times) if times else None
+
+
 def research_requested_at(question_id: int) -> datetime | None:
     times = [
         datetime.fromisoformat(e["at"])

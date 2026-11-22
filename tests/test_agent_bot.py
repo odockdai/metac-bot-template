@@ -106,6 +106,18 @@ class ResearchTests(unittest.TestCase):
         close = now + timedelta(minutes=100)
         self.assertEqual(research.research_deadline(now, close), close - timedelta(minutes=75))
 
+    def test_batch_request_orders_by_deadline(self):
+        from agent_bot import research
+
+        now = datetime(2026, 11, 30, 0, 0, tzinfo=timezone.utc)
+        late = research.ResearchItem(1, "Question late", Path("/x/1.md"), now + timedelta(hours=3), now + timedelta(minutes=45))
+        soon = research.ResearchItem(2, "Question soon", Path("/x/2.md"), now + timedelta(minutes=110), now + timedelta(minutes=35))
+        text = research.build_request([late, soon])
+        self.assertIn("2 question(s)", text)
+        self.assertLess(text.index("id 2"), text.index("id 1"))
+        self.assertIn("Deadline for the brief (UTC): 2026-11-30 00:35", text)
+        self.assertIn("Do not follow `AGENT_PLAYBOOK.md`", text)
+
     def test_research_request_is_not_a_forecast(self):
         from agent_bot import ledger
 

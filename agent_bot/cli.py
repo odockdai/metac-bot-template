@@ -135,25 +135,36 @@ def cmd_pending(args: argparse.Namespace) -> int:
 
 
 def cmd_research_request(args: argparse.Namespace) -> int:
-    details_file = ledger.state_dir() / "questions" / f"{args.question_id}.md"
-    if not details_file.exists():
-        print(f"REFUSED: run `pending` first; no details file for question {args.question_id}.")
-        return 2
-    close_line = next((l for l in details_file.read_text().splitlines() if l.startswith("Closes at (UTC): ")), "")
-    close_value = close_line.removeprefix("Closes at (UTC): ").strip()
-    close_time = datetime.fromisoformat(close_value) if close_value not in {"", "None"} else None
     now = datetime.now(timezone.utc)
-    deadline = research.research_deadline(now, close_time)
-    if deadline <= now:
-        print(f"SKIP RESEARCH: question {args.question_id} closes too soon; forecast with your own research.")
+    items: list[research.ResearchItem] = []
+    skipped: list[dict] = []
+    for question_id in dict.fromkeys(args.question_id):
+        details_file = ledger.state_dir() / "questions" / f"{question_id}.md"
+        if not details_file.exists():
+            skipped.append({"question_id": question_id, "reason": "no details file; run `pending` first"})
+            continue
+        details = details_file.read_text()
+        close_line = next((l for l in details.splitlines() if l.startswith("Closes at (UTC): ")), "")
+        close_value = close_line.removeprefix("Closes at (UTC): ").strip()
+        close_time = datetime.fromisoformat(close_value) if close_value not in {"", "None"} else None
+        deadline = research.research_deadline(now, close_time)
+        if deadline <= now:
+            skipped.append({"question_id": question_id, "reason": "closes too soon; forecast with your own research"})
+            continue
+        items.append(research.ResearchItem(question_id, details, research.research_path(question_id), close_time, deadline))
+    if not items:
+        print(json.dumps({"request_file": None, "skipped": skipped}))
         return 2
-    output = research.research_path(args.question_id)
-    request = research.build_request(args.question_id, details_file.read_text(), output, deadline)
-    request_file = ledger.state_dir() / "research_requests" / f"{args.question_id}.md"
+    request_file = ledger.state_dir() / "research_requests" / f"{now.strftime('%Y%m%dT%H%M%S')}.md"
     request_file.parent.mkdir(exist_ok=True)
-    request_file.write_text(request)
-    ledger.append({"event": "research_requested", "question_id": args.question_id, "deadline": deadline.isoformat()})
-    print(json.dumps({"request_file": str(request_file), "research_file": str(output), "deadline": deadline.isoformat()}))
+    request_file.write_text(research.build_request(items))
+    for item in items:
+        ledger.append({"event": "research_requested", "question_id": item.question_id, "deadline": item.deadline.isoformat()})
+    print(json.dumps({
+        "request_file": str(request_file),
+        "questions": [{"question_id": i.question_id, "research_file": str(i.output_path), "deadline": i.deadline.isoformat()} for i in items],
+        "skipped": skipped,
+    }))
     return 0
 
 
@@ -296,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
     submit.add_argument("--percentiles", help='JSON object level->value, e.g. {"0.05": 10, "0.5": 20, "0.95": 40}')
     submit.set_defaults(func=cmd_submit)
     research_request = sub.add_parser("research-request")
-    research_request.add_argument("--question-id", type=int, required=True)
+    research_request.add_argument("--question-id", type=int, action="append", required=True, help="repeat for a batch")
     research_request.set_defaults(func=cmd_research_request)
     sub.add_parser("retry-comments").set_defaults(func=cmd_retry_comments)
     sub.add_parser("status").set_defaults(func=cmd_status)

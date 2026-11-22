@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
@@ -14,6 +15,15 @@ RESEARCH_BUDGET = timedelta(minutes=45)
 CLOSE_MARGIN = timedelta(minutes=75)
 
 ResearchStatus = Literal["missing", "ready", "partial"]
+
+
+@dataclass(frozen=True)
+class ResearchItem:
+    question_id: int
+    details: str
+    output_path: Path
+    closes_at: datetime | None
+    deadline: datetime
 
 
 def research_dir() -> Path:
@@ -45,19 +55,29 @@ def research_deadline(now: datetime, close_time: datetime | None) -> datetime:
     return deadline
 
 
-def build_request(question_id: int, details: str, output_path: Path, deadline: datetime) -> str:
-    return "\n".join(
-        [
-            f"Research request for the Metaculus forecasting bot (question {question_id}). "
-            "Do not reply; write the brief to the file.",
+def _utc(moment: datetime | None) -> str:
+    return moment.strftime("%Y-%m-%d %H:%M") if moment else "unknown"
+
+
+def build_request(items: list[ResearchItem]) -> str:
+    ordered = sorted(items, key=lambda item: item.deadline)
+    lines = [
+        f"Research request for the Metaculus forecasting bot ({len(ordered)} question(s)). "
+        "Do not reply; write one brief per question to its output path. "
+        "Work in the order listed (earliest deadline first). If you cannot finish one in time, "
+        "write what you have with `STATUS: partial` before its deadline and move on.",
+        "",
+        PROTOCOL_FILE.read_text().strip(),
+    ]
+    for number, item in enumerate(ordered, start=1):
+        lines += [
             "",
-            f"Output path: {output_path}",
-            f"Deadline (UTC): {deadline.strftime('%Y-%m-%d %H:%M')}",
+            f"## Question {number} of {len(ordered)} (id {item.question_id})",
             "",
-            PROTOCOL_FILE.read_text().strip(),
+            f"Output path: {item.output_path}",
+            f"Deadline for the brief (UTC): {_utc(item.deadline)}",
+            f"Question closes (UTC): {_utc(item.closes_at)}",
             "",
-            "## Question",
-            "",
-            details.strip(),
+            item.details.strip(),
         ]
-    )
+    return "\n".join(lines)

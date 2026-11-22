@@ -158,13 +158,18 @@ def cmd_research_request(args: argparse.Namespace) -> int:
     if not items:
         print(json.dumps({"request_file": None, "skipped": skipped}))
         return 2
-    request_file = ledger.state_dir() / "research_requests" / f"{now.strftime('%Y%m%dT%H%M%S')}.md"
+    request_file = research.research_dir() / "requests" / f"{now.strftime('%Y%m%dT%H%M%S')}.md"
     request_file.parent.mkdir(exist_ok=True)
     request_file.write_text(research.build_request(items))
     for item in items:
         ledger.append({"event": "research_requested", "question_id": item.question_id, "deadline": item.deadline.isoformat()})
+    first_deadline = min(item.deadline for item in items).strftime("%Y-%m-%d %H:%M")
     print(json.dumps({
         "request_file": str(request_file),
+        "message": (
+            f"Research request for the Metaculus forecasting bot: read {request_file} and follow it exactly. "
+            f"{len(items)} question(s); first brief due {first_deadline} UTC. Do not reply."
+        ),
         "questions": [{"question_id": i.question_id, "research_file": str(i.output_path), "deadline": i.deadline.isoformat()} for i in items],
         "skipped": skipped,
     }))

@@ -19,8 +19,13 @@ The owner gives direction only by changing this file or the code, in a commit wi
 1. `uv run python -m agent_bot.cli retry-comments` (a forecast without its comment does not count for prizes).
 2. For each tournament to cover (the practice target during testing, otherwise every entry in `live_tournaments.json`): `uv run python -m agent_bot.cli pending --tournament <id>`.
 3. Work through pending questions with the fewest `minutes_left` first. Skip `supported: false`. If more questions are pending than fit in about 40 minutes, take the ones closing soonest; the next run picks up the rest.
-4. Per question, read its `details_file`, then forecast as below and submit.
-5. Stop. Report only failures, refused submissions or questions that will close before the next run.
+4. Research hand-off, per question:
+   - `research_status` is `missing` and `research_requested_at` is empty: run `uv run python -m agent_bot.cli research-request --question-id <id>` and send the printed `request_file` content, unchanged, to the research agent as a message that expects no reply. Leave the question for the next run, unless it closes within 90 minutes.
+   - `research_status` is `ready` or `partial`: read the brief as evidence, check its key facts and dates yourself, add at least one source of your own, then forecast.
+   - The brief is still `missing` when it is due, or the question closes within 90 minutes: forecast with your own research. Never let a question close without a forecast while waiting for research.
+   The research agent gathers evidence only. The forecast, the probability and the comment are yours.
+5. Per question, read its `details_file`, then forecast as below and submit.
+6. Stop. Report only failures, refused submissions or questions that will close before the next run.
 
 ## How to forecast one question
 

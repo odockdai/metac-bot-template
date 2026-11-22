@@ -49,9 +49,11 @@ def append(entry: dict) -> None:
 
 
 def latest_by_question() -> dict[int, dict]:
+    """Newest forecast/comment event per question; research requests are tracked apart."""
     latest: dict[int, dict] = {}
     for entry in read_entries():
-        latest[int(entry["question_id"])] = entry
+        if entry["event"] != "research_requested":
+            latest[int(entry["question_id"])] = entry
     return latest
 
 
@@ -61,6 +63,15 @@ def forecasted_question_ids() -> set[int]:
         for qid, entry in latest_by_question().items()
         if entry["event"] in {"forecast_posted", "comment_posted", "comment_failed"}
     }
+
+
+def research_requested_at(question_id: int) -> datetime | None:
+    times = [
+        datetime.fromisoformat(e["at"])
+        for e in read_entries()
+        if e["event"] == "research_requested" and int(e["question_id"]) == question_id
+    ]
+    return max(times) if times else None
 
 
 def comments_pending() -> list[dict]:

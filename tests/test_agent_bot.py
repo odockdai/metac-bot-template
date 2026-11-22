@@ -84,6 +84,36 @@ class FormatTests(unittest.TestCase):
         validate_cdf(cdf, 200, True, True)
 
 
+class ResearchTests(unittest.TestCase):
+    def test_status_reads_last_line(self):
+        from agent_bot import research
+
+        path = Path(tempfile.mkstemp(suffix=".md")[1])
+        path.write_text("partial text")
+        self.assertEqual(research.research_status(path), "missing")
+        path.write_text("brief\n\nSTATUS: partial - no base rate\n")
+        self.assertEqual(research.research_status(path), "partial")
+        path.write_text("brief\nSTATUS: complete\n")
+        self.assertEqual(research.research_status(path), "ready")
+        path.unlink()
+        self.assertEqual(research.research_status(path), "missing")
+
+    def test_deadline_leaves_time_before_close(self):
+        from agent_bot import research
+
+        now = datetime(2026, 11, 30, 0, 0, tzinfo=timezone.utc)
+        self.assertEqual(research.research_deadline(now, None), now + timedelta(minutes=45))
+        close = now + timedelta(minutes=100)
+        self.assertEqual(research.research_deadline(now, close), close - timedelta(minutes=75))
+
+    def test_research_request_is_not_a_forecast(self):
+        from agent_bot import ledger
+
+        ledger.append({"event": "research_requested", "question_id": 99, "deadline": "x"})
+        self.assertNotIn(99, ledger.forecasted_question_ids())
+        self.assertIsNotNone(ledger.research_requested_at(99))
+
+
 class GuardTests(unittest.TestCase):
     def test_scored_tournament_refused_until_live(self):
         comment = Path(tempfile.mkstemp(suffix=".md")[1])

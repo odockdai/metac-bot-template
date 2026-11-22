@@ -35,7 +35,7 @@ from forecasting_tools import (  # noqa: E402
     Percentile,
 )
 
-from agent_bot import ledger  # noqa: E402
+from agent_bot import ledger, research  # noqa: E402
 from agent_bot.forecast_format import (  # noqa: E402
     ForecastFormatError,
     check_percentiles,
@@ -113,6 +113,8 @@ def cmd_pending(args: argparse.Namespace) -> int:
         kind = question_type(question)
         detail_file = questions_dir / f"{question.id_of_question}.md"
         detail_file.write_text(details_markdown(question))
+        brief = research.research_path(question.id_of_question)
+        requested_at = ledger.research_requested_at(question.id_of_question)
         pending.append(
             {
                 "question_id": question.id_of_question,
@@ -122,10 +124,36 @@ def cmd_pending(args: argparse.Namespace) -> int:
                 "minutes_left": minutes_left(question),
                 "title": question.question_text,
                 "details_file": str(detail_file),
+                "research_file": str(brief),
+                "research_status": research.research_status(brief),
+                "research_requested_at": requested_at.isoformat() if requested_at else None,
             }
         )
     pending.sort(key=lambda q: q["minutes_left"] if q["minutes_left"] is not None else 10**9)
     print(json.dumps({"tournament": args.tournament, "pending": pending}, indent=2))
+    return 0
+
+
+def cmd_research_request(args: argparse.Namespace) -> int:
+    details_file = ledger.state_dir() / "questions" / f"{args.question_id}.md"
+    if not details_file.exists():
+        print(f"REFUSED: run `pending` first; no details file for question {args.question_id}.")
+        return 2
+    close_line = next((l for l in details_file.read_text().splitlines() if l.startswith("Closes at (UTC): ")), "")
+    close_value = close_line.removeprefix("Closes at (UTC): ").strip()
+    close_time = datetime.fromisoformat(close_value) if close_value not in {"", "None"} else None
+    now = datetime.now(timezone.utc)
+    deadline = research.research_deadline(now, close_time)
+    if deadline <= now:
+        print(f"SKIP RESEARCH: question {args.question_id} closes too soon; forecast with your own research.")
+        return 2
+    output = research.research_path(args.question_id)
+    request = research.build_request(args.question_id, details_file.read_text(), output, deadline)
+    request_file = ledger.state_dir() / "research_requests" / f"{args.question_id}.md"
+    request_file.parent.mkdir(exist_ok=True)
+    request_file.write_text(request)
+    ledger.append({"event": "research_requested", "question_id": args.question_id, "deadline": deadline.isoformat()})
+    print(json.dumps({"request_file": str(request_file), "research_file": str(output), "deadline": deadline.isoformat()}))
     return 0
 
 
@@ -267,6 +295,9 @@ def main(argv: list[str] | None = None) -> int:
     submit.add_argument("--mc", help='JSON object, e.g. {"Yes": 0.6, "No": 0.4}')
     submit.add_argument("--percentiles", help='JSON object level->value, e.g. {"0.05": 10, "0.5": 20, "0.95": 40}')
     submit.set_defaults(func=cmd_submit)
+    research_request = sub.add_parser("research-request")
+    research_request.add_argument("--question-id", type=int, required=True)
+    research_request.set_defaults(func=cmd_research_request)
     sub.add_parser("retry-comments").set_defaults(func=cmd_retry_comments)
     sub.add_parser("status").set_defaults(func=cmd_status)
     args = parser.parse_args(argv)

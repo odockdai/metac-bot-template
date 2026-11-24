@@ -1,4 +1,4 @@
 {
-  "comment": "Scored tournaments the agent may submit to. Empty until the owner approves go-live; every change is a commit and a CHANGELOG line.",
-  "live": []
+  "comment": "Scored tournaments the agent may submit to. Every change is a commit and a CHANGELOG line.",
+  "live": ["minibench"]
 }

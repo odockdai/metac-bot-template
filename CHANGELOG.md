@@ -2,6 +2,10 @@
 
 Significant changes to how the bot forecasts, kept for the prize inspection.
 
+## 2026-11-24
+
+- Go-live approved by the owner for MiniBench only: `agent_bot/live_tournaments.json` now lists `minibench`. The `minibench` slug is a recurring question series, so this covers the 30 Nov round and later rounds under the same slug. `fall-futureeval-2026` stays unapproved. The current MiniBench round had no open questions at approval time, so nothing was submitted by enabling it.
+
 ## 2026-11-22
 
 - Forked `Metaculus/metac-bot-template`.

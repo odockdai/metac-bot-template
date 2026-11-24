@@ -126,8 +126,8 @@ class ResearchTests(unittest.TestCase):
         self.assertEqual(research.research_status(path, not_before=datetime.now(timezone.utc) + timedelta(minutes=1)), "missing")
         self.assertEqual(research.research_status(path, not_before=datetime.now(timezone.utc) - timedelta(days=1)), "ready")
 
-    def test_targets_never_include_unapproved_scored_tournaments(self):
-        self.assertEqual(cli.targets(), ["bot-testing-area"])
+    def test_targets_match_live_tournaments(self):
+        self.assertEqual(cli.targets(), ["bot-testing-area"] + sorted(cli.live_tournaments()))
 
     def test_research_request_is_not_a_forecast(self):
         from agent_bot import ledger
@@ -141,7 +141,7 @@ class GuardTests(unittest.TestCase):
     def test_scored_tournament_refused_until_live(self):
         comment = Path(tempfile.mkstemp(suffix=".md")[1])
         comment.write_text("x" * 300)
-        for tournament in ("minibench", "fall-futureeval-2026", "33121"):
+        for tournament in ("fall-futureeval-2026", "33121", "spring-futureeval-2027"):
             args = Namespace(tournament=tournament, question_id=1, comment_file=str(comment), binary=0.5, mc=None, percentiles=None)
             self.assertEqual(cli.cmd_submit(args), 2)
 

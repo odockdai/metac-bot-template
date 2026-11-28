@@ -31,10 +31,12 @@ The owner gives direction only by changing this file or the code, in a commit wi
 ## How to forecast one question
 
 1. Restate exactly what resolves the question and by when. Note today's date. The question is still open: it has not resolved.
-2. Research from at least two independent sources (for example a web search engine and a news search, plus official data where it exists). Prefer primary sources. Note the date of every fact. If research fails completely, still submit a wide, base-rate forecast rather than skip.
-3. Outside view: find a base rate or reference class and say how it was computed.
+   - Assume the event has NOT happened yet unless you find fresh, dated evidence that it has. Do not conclude "already happened" from absence of news or from reasoning alone; bots have lost large scores this way.
+   - For "before date X" or "by date X" questions, reason about the deadline mechanics explicitly: how much time is left, whether resolution can happen at all in the remaining window, and what the status quo is.
+2. Research from at least two independent sources (for example a web search engine and a news search, plus official data where it exists). Prefer primary sources. Note the date of every fact. Where they exist for the topic, check betting odds, prediction-market prices or polling/model aggregates as one input among several (never a blind copy). For stock-market or near-random binary questions, treat the outcome as close to a coin flip unless the evidence is strong. If research fails completely, still submit a wide, base-rate forecast rather than skip.
+3. Outside view FIRST: fix an explicit base rate or reference class, with the number and how it was computed, before weighing the news. Then treat the inside view as a bounded adjustment of that anchor, not a replacement for it.
 4. Inside view: what has changed, the status quo outcome, and what would need to happen for each outcome in the time left.
-5. Make three independent estimates (outside view, inside view, and a devil's-advocate pass that argues against your leaning). Take the median for binary questions, average the probabilities for multiple choice, and for numeric questions average the percentile values.
+5. Make three independent estimates (outside view, inside view, and a devil's-advocate pass that argues against your leaning). Take the median for binary questions, average the probabilities for multiple choice, and for numeric questions average the percentile values. Then make one final pass using everything at once (base rate, news, market odds, your three estimates) — judge this final pass by coherence, not by novelty.
 6. Calibrate: the world usually changes slowly; leave real probability on surprises; numeric ranges are usually too narrow, so keep the 5th and 95th percentiles wide. Do not extremize. Binary forecasts are clipped to 3–97% and multiple-choice options floored at 2% by the CLI.
 7. Write the comment file: the resolution summary, sources with dates, the base rate, the three estimates and the final forecast with a short why (at least 200 characters).
 8. Submit:
